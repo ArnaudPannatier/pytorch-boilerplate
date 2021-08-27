@@ -2,4 +2,4 @@
 
 from .base import Callback, CallbackList, CallbackListFactory
 from .checkpoint import ModelCheckpoint
-from .logger import TxtLogger, StdoutLogger
+from .logger import StdoutLogger, TqdmEpochLogger, TqdmLogger, TxtLogger

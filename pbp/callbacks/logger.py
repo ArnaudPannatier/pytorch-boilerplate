@@ -1,10 +1,12 @@
 """Logger callback logs scalars to different files so that they can be
 processed later."""
 
-from collections import defaultdict
 import os
-from os import path
 import sys
+from collections import defaultdict
+from os import path
+
+import tqdm
 
 from ..utils import AverageMeter
 from .base import Callback
@@ -39,11 +41,8 @@ class TxtLogger(Logger):
 
     def _get_file(self, experiment, key):
         if key not in self._files:
-            log_file_path = path.join(
-                experiment.arguments["output_dir"],
-                "logs",
-                key
-            )
+            log_file_path = path.join(experiment.arguments["output_dir"],
+                                      "logs", key)
             if not path.exists(path.dirname(log_file_path)):
                 os.makedirs(path.dirname(log_file_path))
             self._files[key] = open(log_file_path, "a")
@@ -55,18 +54,14 @@ class TxtLogger(Logger):
 
     def _write_values(self, experiment):
         for k, v in self._values.items():
-            print(
-                v,
-                file=self._get_file(experiment, k),
-                flush=True
-            )
+            print(v, file=self._get_file(experiment, k), flush=True)
         self._values.clear()
 
     def on_train_stop(self, experiment):
         for k, f in self._files.items():
             f.close()
         self._files.clear()
-            
+
     def on_train_batch_stop(self, experiment):
         self._write_values(experiment)
 
@@ -89,7 +84,7 @@ class StdoutLogger(Logger):
         ])
 
         if sys.stdout.isatty():
-            msg += "\b"*len(msg)
+            msg += "\b" * len(msg)
         else:
             msg += "\n"
 
@@ -114,3 +109,45 @@ class StdoutLogger(Logger):
 
     def on_train_stop(self, experiment):
         self._clear_values()
+
+
+class TqdmLogger(StdoutLogger):
+    def on_train_start(self, experiment):
+        super().on_train_start(experiment)
+        self.total = len(experiment.train_data)
+
+    def on_epoch_start(self, experiment):
+        super().on_epoch_start(experiment)
+        self.pbar = tqdm.tqdm(total=self.total, file=sys.stdout)
+
+    def on_epoch_stop(self, experiment):
+        super().on_epoch_stop(experiment)
+        self.pbar.close()
+
+    def _write_values(self, experiment):
+        self.pbar.update(1)
+        self.pbar.set_postfix(
+            {k: v.average_value
+             for k, v in self._values.items()})
+
+
+class TqdmEpochLogger(Logger):
+    def __init__(self):
+        self._values = defaultdict(AverageMeter)
+
+    def log(self, key, value):
+        self._values[key] += value
+
+    def on_train_start(self, experiment):
+        super().on_train_start(experiment)
+        self.epochs = experiment.trainer.epochs
+        self.pbar = tqdm.tqdm(total=self.epochs, file=sys.stdout)
+
+    def on_train_stop(self, experiment):
+        self.pbar.close()
+
+    def on_epoch_start(self, experiment):
+        self.pbar.update(1)
+        self.pbar.set_postfix(
+            {k: v.average_value
+             for k, v in self._values.items()})
