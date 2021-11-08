@@ -61,7 +61,9 @@ class WandB(Logger):
                    resume="allow")
 
         if self.watch:
-            wandb.watch(experiment.model, log_freq=self.watch_log_frequency)
+            wandb.watch(experiment.model,
+                        log_freq=self.watch_log_frequency,
+                        log_graph=True)
 
     def log(self, key, value):
         self._values[key] += value
