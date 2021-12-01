@@ -35,6 +35,7 @@ class WandB(Logger):
                  wandb_per_epoch: bool = True,
                  wandb_log_frequency: int = 10,
                  wandb_watch_log_frequency: int = 1000,
+                 wandb_run_name: str = "",
                  wandb_run_id: str = ""):
         self.project = wandb_project
         self.watch = wandb_watch
@@ -42,6 +43,7 @@ class WandB(Logger):
         self.watch_log_frequency = wandb_watch_log_frequency
         self.per_epoch = wandb_per_epoch
         self.run_id = wandb_run_id
+        self.run_name = wandb_run_name
         self._values = defaultdict(AverageMeter)
         self._validation_batches = 0
 
@@ -57,6 +59,7 @@ class WandB(Logger):
         # Init the run
         wandb.init(project=(self.project or None),
                    id=(self.run_id or None),
+                   name=(self.run_name or None),
                    config=dict(experiment.arguments.items()),
                    resume="allow")
 
@@ -106,10 +109,11 @@ class LocalWandB(WandB):
                  wandb_per_epoch: bool = True,
                  wandb_log_frequency: int = 10,
                  wandb_watch_log_frequency: int = 1000,
+                 wandb_run_name: str = "",
                  wandb_run_id: str = ""):
         super().__init__(wandb_project, wandb_watch, wandb_per_epoch,
                          wandb_log_frequency, wandb_watch_log_frequency,
-                         wandb_run_id)
+                         wandb_run_name, wandb_run_id)
 
         if torch.cuda.is_available():
             print("Starting WandB Server.")
@@ -131,6 +135,8 @@ class LocalWandB(WandB):
 
     def on_train_stop(self, experiment):
         super().on_train_stop(experiment)
+
+        wandb.finish()
 
         if torch.cuda.is_available():
             print("Closing server.")
