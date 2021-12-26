@@ -1,8 +1,8 @@
 import json
 import os
+import sys
 from os import path
 from subprocess import run
-import sys
 
 from .base import Callback
 
@@ -22,11 +22,9 @@ class LogArguments(Callback):
     def _get_git_hash(self):
         dirname = path.dirname(self._get_top_level_file())
         try:
-            r = run(
-                ["git", "rev-parse", "HEAD"],
-                cwd=dirname,
-                capture_output=True
-            )
+            r = run(["git", "rev-parse", "HEAD"],
+                    cwd=dirname,
+                    capture_output=True)
             return r.stdout.decode("utf-8").strip()
         except FileNotFoundError:
             return None
@@ -34,10 +32,7 @@ class LogArguments(Callback):
     def _get_git_dirty(self):
         dirname = path.dirname(self._get_top_level_file())
         try:
-            r = run(
-                ["git", "diff", "--quiet"],
-                cwd=dirname
-            )
+            r = run(["git", "diff", "--quiet"], cwd=dirname)
             return r.returncode == 1
         except FileNotFoundError:
             return None
@@ -45,9 +40,15 @@ class LogArguments(Callback):
     def _get_top_level_file(self):
         import __main__
 
-        return path.join(
-            os.getcwd(),
-            __main__.__file__
+        return path.join(os.getcwd(), __main__.__file__)
+
+
+class LogNParams(Callback):
+    def on_train_start(self, experiment):
+        print(
+            "Model params : ",
+            sum(p.numel() for p in experiment.model.parameters()
+                if p.requires_grad),
         )
 
 
@@ -65,8 +66,10 @@ class CooperativeGridScheduling(Callback):
         yield_after_epochs: int, exit after that many epochs (default: 0)
         exit_code: int, which exit code to use when exiting (default: 1)
     """
-    def __init__(self, yield_after_iterations:int = 0,
-                 yield_after_epochs:int = 0, exit_code:int = 1):
+    def __init__(self,
+                 yield_after_iterations: int = 0,
+                 yield_after_epochs: int = 0,
+                 exit_code: int = 1):
         self.yield_after_iterations = yield_after_iterations
         self.yield_after_epochs = yield_after_epochs
         self.exit_code = exit_code
