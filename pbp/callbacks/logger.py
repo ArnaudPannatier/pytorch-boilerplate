@@ -112,16 +112,21 @@ class StdoutLogger(Logger):
 
 
 class TqdmLogger(StdoutLogger):
-    def on_train_start(self, experiment):
-        super().on_train_start(experiment)
-        self.total = len(experiment.train_data)
-
     def on_epoch_start(self, experiment):
         super().on_epoch_start(experiment)
-        self.pbar = tqdm.tqdm(total=self.total, file=sys.stdout)
+        self.pbar = tqdm.tqdm(total=len(experiment.train_data),
+                              file=sys.stdout)
 
     def on_epoch_stop(self, experiment):
         super().on_epoch_stop(experiment)
+        self.pbar.close()
+
+    def on_validation_start(self, experiment):
+        super().on_validation_start(experiment)
+        self.pbar = tqdm.tqdm(total=len(experiment.val_data), file=sys.stdout)
+
+    def on_validation_stop(self, experiment):
+        super().on_validation_stop(experiment)
         self.pbar.close()
 
     def _write_values(self, experiment):
