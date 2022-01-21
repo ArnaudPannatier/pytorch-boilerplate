@@ -16,11 +16,9 @@ class SingleGroupLRScheduler(Callback):
 
 
 class WarmupLR(SingleGroupLRScheduler):
-    def __init__(
-        self,
-        lr_warmup_steps:int = 0,
-        lr_schedule_verbose:bool = False
-    ):
+    def __init__(self,
+                 lr_warmup_steps: int = 0,
+                 lr_schedule_verbose: bool = False):
         self.warmup_steps = lr_warmup_steps
         self.verbose = lr_schedule_verbose
 
@@ -35,18 +33,15 @@ class WarmupLR(SingleGroupLRScheduler):
 
 
 class MultiplicativeLRSchedule(SingleGroupLRScheduler):
-    def __init__(
-        self,
-        lr_mul_schedule:str = "",
-        lr_schedule_verbose:bool = False
-    ):
+    def __init__(self,
+                 lr_mul_schedule: str = "",
+                 lr_schedule_verbose: bool = False):
         self.verbose = lr_schedule_verbose
 
         # Parse the learning rate schedule from the argument
         try:
-            steps, factors = zip(*[
-                p.split("-") for p in lr_mul_schedule.split(",")
-            ])
+            steps, factors = zip(
+                *[p.split("-") for p in lr_mul_schedule.split(",")])
             factors = list(map(float, factors))
             steps = list(map(int, steps))
         except ValueError:
@@ -66,7 +61,34 @@ class MultiplicativeLRSchedule(SingleGroupLRScheduler):
 
         # Change the learning rate according to the multiplicative factor
         param_group = experiment.optimizer.param_groups[0]
-        param_group["lr"] = param_group["initial_lr"] * self.factors[self._step_idx]
+        param_group["lr"] = param_group["initial_lr"] * self.factors[
+            self._step_idx]
         self._step_idx += 1
 
         self._report_lr_change(param_group)
+
+
+class ReduceLROnPlateau(Callback):
+    def __init__(self, lr_scheduler, key):
+        self.lrs = lr_scheduler
+        self.key = key
+
+        self._step_idx = 0
+
+    def on_train_start(self, experiment):
+        from itertools import cycle
+        self.i = cycle(iter(experiment.val_data))
+
+    def on_train_batch_start(self, experiment):
+        self._step_idx += 1
+        acc = 0
+        n_val_batch = 2
+        if self._step_idx % 10 == 0:
+            for batch in [next(self.i) for _ in range(n_val_batch)]:
+                batch = experiment._batch_to_cuda(batch,
+                                                  experiment.arguments["cuda"])
+                acc += experiment.trainer._compute_validation(
+                    experiment, experiment.model, batch)
+            acc /= n_val_batch
+
+            self.lrs.step(acc)

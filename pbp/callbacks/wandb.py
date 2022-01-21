@@ -5,7 +5,6 @@ from collections import defaultdict
 
 import torch
 from dotenv import load_dotenv
-from sshtunnel import SSHTunnelForwarder
 
 import wandb
 
@@ -122,6 +121,7 @@ class LocalWandB(WandB):
     def start_server(self):
         load_dotenv()
         PORT = int(os.getenv("PORT"))
+        from sshtunnel import SSHTunnelForwarder
         self.server = SSHTunnelForwarder(
             os.getenv("MACHINE_ADDRESS"),
             ssh_username=os.getenv("USERNAME"),
