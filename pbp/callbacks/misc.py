@@ -45,11 +45,9 @@ class LogArguments(Callback):
 
 class LogNParams(Callback):
     def on_train_start(self, experiment):
-        print(
-            "Model params : ",
-            sum(p.numel() for p in experiment.model.parameters()
-                if p.requires_grad),
-        )
+        n = sum(p.numel() for p in experiment.model.parameters()
+                if p.requires_grad)
+        print(f"Model params : {n} ({n // 1e6} M)")
 
 
 class CooperativeGridScheduling(Callback):
