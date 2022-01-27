@@ -47,7 +47,7 @@ class LogNParams(Callback):
     def on_train_start(self, experiment):
         n = sum(p.numel() for p in experiment.model.parameters()
                 if p.requires_grad)
-        print(f"Model params : {n} ({n // 1e6} M)")
+        print(f"Model params : {n} ({int(n/1e6)} M)")
 
 
 class CooperativeGridScheduling(Callback):

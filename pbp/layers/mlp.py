@@ -1,8 +1,4 @@
-from functools import partial
-
 import torch.nn as nn
-
-from ..factory import ObjectFactory
 
 
 class MLP(nn.Module):
