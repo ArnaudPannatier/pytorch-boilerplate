@@ -1,6 +1,7 @@
 """Implement positional encoding layers."""
 
-from math import log, tau as two_pi, sqrt
+from math import log, sqrt
+from math import tau as two_pi
 
 import torch
 
@@ -26,16 +27,16 @@ class FixedPositionalEncoding(torch.nn.Module):
         frequency_scaling: {log, linear}, choose how to scale the frequencies
                            (default: log)
     """
-    def __init__(self, normalize_with=1., n_frequencies=16, sigma_0=0.1,
-                 sigma_n=100, frequency_scaling="log"):
+
+    def __init__(
+        self, normalize_with=1.0, n_frequencies=16, sigma_0=0.1, sigma_n=100,
+    ):
         super().__init__()
 
-        self.register_buffer("normalize_with", torch.tensor(1/normalize_with))
+        self.register_buffer("normalize_with", torch.tensor(1 / normalize_with))
         self.register_buffer(
             "sigmas",
-            torch.exp(
-                torch.linspace(log(sigma_0), log(sigma_n), n_frequencies)
-            )
+            torch.exp(torch.linspace(log(sigma_0), log(sigma_n), n_frequencies)),
         )
 
     def forward(self, x):
@@ -45,7 +46,8 @@ class FixedPositionalEncoding(torch.nn.Module):
         # Embed
         cosx = torch.cos(two_pi * self.sigmas * x[..., None])
         sinx = torch.sin(two_pi * self.sigmas * x[..., None])
-        pe_x = torch.cat([cosx, sinx], dim=-1)
+        scale = sqrt(1 / (2 * len(self.sigmas)))
+        pe_x = torch.cat([cosx, sinx], dim=-1) * scale
 
         # Flatten the last two dimensions
         shape = pe_x.shape
@@ -73,13 +75,11 @@ class RFF(torch.nn.Module):
                matrix (defines the gamma parameter for the gaussian kernel)
                (default: 1.)
     """
+
     def __init__(self, input_dims, feature_dims, sigma=1.0):
         super().__init__()
 
-        self.register_buffer(
-            "beta",
-            torch.randn(feature_dims//2, input_dims) * sigma
-        )
+        self.register_buffer("beta", torch.randn(feature_dims // 2, input_dims) * sigma)
 
     def forward(self, x):
         bx = torch.einsum("...i,ji->...j", x, self.beta)
