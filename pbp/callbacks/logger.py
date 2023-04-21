@@ -3,6 +3,7 @@ processed later."""
 
 import os
 import sys
+import time
 from collections import defaultdict
 from os import path
 
@@ -35,14 +36,14 @@ class Logger(Callback):
 
 class TxtLogger(Logger):
     """Logger stores scalars to files for later processing."""
+
     def __init__(self):
         self._files = {}
         self._values = {}
 
     def _get_file(self, experiment, key):
         if key not in self._files:
-            log_file_path = path.join(experiment.arguments["output_dir"],
-                                      "logs", key)
+            log_file_path = path.join(experiment.arguments["output_dir"], "logs", key)
             if not path.exists(path.dirname(log_file_path)):
                 os.makedirs(path.dirname(log_file_path))
             self._files[key] = open(log_file_path, "a")
@@ -71,6 +72,7 @@ class TxtLogger(Logger):
 
 class StdoutLogger(Logger):
     """Log scalars to stdout."""
+
     def __init__(self):
         self._values = defaultdict(AverageMeter)
 
@@ -78,10 +80,9 @@ class StdoutLogger(Logger):
         self._values[key] += value
 
     def _write_values(self, experiment):
-        msg = " - ".join([
-            "{}: {}".format(k, v.average_value)
-            for k, v in self._values.items()
-        ])
+        msg = " - ".join(
+            ["{}: {}".format(k, v.average_value) for k, v in self._values.items()]
+        )
 
         if sys.stdout.isatty():
             msg += "\b" * len(msg)
@@ -111,11 +112,41 @@ class StdoutLogger(Logger):
         self._clear_values()
 
 
+class StdoutEpochLogger(StdoutLogger):
+    """Log scalars to stdout every epoch."""
+
+    def on_epoch_start(self, experiment):
+        self.tic = time.perf_counter()
+        self._clear_values()
+
+    def on_train_batch_stop(self, experiment):
+        pass
+
+    def on_epoch_stop(self, experiment):
+        self.tac = time.perf_counter()
+        self.log("train time", self.tac - self.tic)
+        self._write_values(experiment)
+
+    def on_validation_start(self, experiment):
+        self.tic = time.perf_counter()
+        self._clear_values()
+
+    def on_val_batch_stop(self, experiment):
+        pass
+
+    def on_validation_stop(self, experiment):
+        self.tac = time.perf_counter()
+        self.log("val time", self.tac - self.tic)
+        self._write_values(experiment)
+
+    def on_train_stop(self, experiment):
+        self._clear_values()
+
+
 class TqdmLogger(StdoutLogger):
     def on_epoch_start(self, experiment):
         super().on_epoch_start(experiment)
-        self.pbar = tqdm.tqdm(total=len(experiment.train_data),
-                              file=sys.stdout)
+        self.pbar = tqdm.tqdm(total=len(experiment.train_data), file=sys.stdout)
 
     def on_epoch_stop(self, experiment):
         super().on_epoch_stop(experiment)
@@ -131,9 +162,7 @@ class TqdmLogger(StdoutLogger):
 
     def _write_values(self, experiment):
         self.pbar.update(1)
-        self.pbar.set_postfix(
-            {k: v.average_value
-             for k, v in self._values.items()})
+        self.pbar.set_postfix({k: v.average_value for k, v in self._values.items()})
 
 
 class TqdmEpochLogger(Logger):
@@ -153,6 +182,4 @@ class TqdmEpochLogger(Logger):
 
     def on_epoch_start(self, experiment):
         self.pbar.update(1)
-        self.pbar.set_postfix(
-            {k: v.average_value
-             for k, v in self._values.items()})
+        self.pbar.set_postfix({k: v.average_value for k, v in self._values.items()})

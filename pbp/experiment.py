@@ -2,8 +2,8 @@
 and running experiments."""
 
 import argparse
-from contextlib import contextmanager
 import os
+from contextlib import contextmanager
 from os import path
 
 import torch
@@ -11,7 +11,7 @@ import yaml
 from yaml import Loader
 
 from .callbacks import CallbackListFactory
-from .factory import ObjectFactory, EmptyFactory, CallableFactory
+from .factory import CallableFactory, EmptyFactory, ObjectFactory
 from .optimizers import SingleOptimizerFactory
 from .trainer import Trainer
 
@@ -23,13 +23,20 @@ class Experiment:
     experiment wide as well as a global variable holding the currently running
     experiment.
     """
+
     _active_experiment = None
 
-    def __init__(self, model, train_data, val_data=EmptyFactory(None),
-                 optimizer=None, callbacks=[], trainer=None):
+    def __init__(
+        self,
+        model,
+        train_data,
+        val_data=EmptyFactory(None),
+        optimizer=None,
+        callbacks=[],
+        trainer=None,
+    ):
         self.model_factory = self._get_model_factory(model)
-        self.train_data_factory = \
-            self._get_dataset_factory( train_data, "train_data")
+        self.train_data_factory = self._get_dataset_factory(train_data, "train_data")
         self.val_data_factory = self._get_dataset_factory(val_data, "val_data")
         self.optimizer_factory = self._get_optimizer_factory(optimizer)
         self.callback_factory = CallbackListFactory(*callbacks)
@@ -42,8 +49,9 @@ class Experiment:
     @staticmethod
     def active():
         if Experiment._active_experiment is None:
-            raise RuntimeError(("An experiment needs to be running "
-                                "for `active` to work."))
+            raise RuntimeError(
+                ("An experiment needs to be running " "for `active` to work.")
+            )
         return Experiment._active_experiment
 
     def _get_model_factory(self, model):
@@ -54,9 +62,13 @@ class Experiment:
         elif callable(model):
             return CallableFactory(model)
 
-        raise ValueError(("The passed model should be an instance of "
-                          "(torch.nn.Module, pbp.factory.ObjectFactory, "
-                          "callable) but it was none of the above."))
+        raise ValueError(
+            (
+                "The passed model should be an instance of "
+                "(torch.nn.Module, pbp.factory.ObjectFactory, "
+                "callable) but it was none of the above."
+            )
+        )
 
     def _get_dataset_factory(self, data, namespace):
         if isinstance(data, torch.utils.data.DataLoader):
@@ -64,15 +76,16 @@ class Experiment:
         elif isinstance(data, ObjectFactory):
             return data
         elif callable(data):
-            return CallableFactory(
-                data,
-                namespace=namespace
-            )
+            return CallableFactory(data, namespace=namespace)
 
-        raise ValueError(("The passed {} should be an instance of "
-                          "(torch.utils.data.DataLoader, "
-                          "pbp.factory.ObjectFactory, callable) but it was none "
-                          "of the above.").format(namespace))
+        raise ValueError(
+            (
+                "The passed {} should be an instance of "
+                "(torch.utils.data.DataLoader, "
+                "pbp.factory.ObjectFactory, callable) but it was none "
+                "of the above."
+            ).format(namespace)
+        )
 
     def _get_optimizer_factory(self, optimizer):
         if isinstance(optimizer, torch.optim.Optimizer):
@@ -84,9 +97,13 @@ class Experiment:
         elif optimizer is None:
             return SingleOptimizerFactory()
 
-        raise ValueError(("The passed optimizer should be an instance of "
-                          "(torch.optim.Optimizer, pbp.factory.ObjectFactory, "
-                          "callable) but it was none of the above."))
+        raise ValueError(
+            (
+                "The passed optimizer should be an instance of "
+                "(torch.optim.Optimizer, pbp.factory.ObjectFactory, "
+                "callable) but it was none of the above."
+            )
+        )
 
     def _get_trainer_factory(self, trainer):
         if isinstance(trainer, Trainer):
@@ -96,41 +113,42 @@ class Experiment:
         elif callable(trainer):
             return CallableFactory(trainer)
 
-        raise ValueError(("The passed trainer should be an instance of "
-                          "(pbp.trainer.Trainer, pbp.factory.ObjectFactory, "
-                          "callable) but it was none of the above"))
+        raise ValueError(
+            (
+                "The passed trainer should be an instance of "
+                "(pbp.trainer.Trainer, pbp.factory.ObjectFactory, "
+                "callable) but it was none of the above"
+            )
+        )
 
     def _get_default_output_dir(self):
-        return path.join(
-            os.getcwd(),
-            "experiment"
-        )
+        return path.join(os.getcwd(), "experiment")
 
     def _collect_arguments(self, argv):
         # Define the parser
         parser = argparse.ArgumentParser(conflict_handler="resolve")
-        parser.add_argument(
-            "--config",
-            help="Load the configuration from this file"
-        )
+        parser.add_argument("--config", help="Load the configuration from this file")
         parser.add_argument(
             "--verbose",
             type=int,
             default=0,
-            help=("Control the verbosity of several logging components "
-                  "(default: 0 which means quiet)")
+            help=(
+                "Control the verbosity of several logging components "
+                "(default: 0 which means quiet)"
+            ),
         )
         parser.add_argument(
             "--output_dir",
             default=self._get_default_output_dir(),
-            help="Use this directory as the root for writing the results"
+            help="Use this directory as the root for writing the results",
         )
         parser.add_argument(
             "--cuda",
             default=torch.cuda.is_available(),
             type=bool,
-            help=("Set the device to cuda (default: "
-                  "{})").format(torch.cuda.is_available())
+            help=("Set the device to cuda (default: " "{})").format(
+                torch.cuda.is_available()
+            ),
         )
         self.train_data_factory.add_to_parser(parser)
         self.val_data_factory.add_to_parser(parser)
@@ -141,12 +159,12 @@ class Experiment:
 
         # Parse the arguments once in order to get the config file to get
         # default values from
-        args = parser.parse_args(argv)
+        args, _ = parser.parse_known_args(argv)
         if args.config is not None:
             with open(args.config, "r") as f:
                 config_args = yaml.load(f, Loader=Loader)
             args = argparse.Namespace(**config_args)
-            args = parser.parse_args(argv, args)
+            args, _ = parser.parse_known_args(argv, args)
 
         # Transform the arguments into a dictionary add the experiment and
         # return them
@@ -173,10 +191,7 @@ class Experiment:
         if isinstance(batch, (list, tuple)):
             return [self._batch_to_cuda(b, cuda) for b in batch]
         if isinstance(batch, dict):
-            return {
-                k: self._batch_to_cuda(v, cuda)
-                for k, v in batch.items()
-            }
+            return {k: self._batch_to_cuda(v, cuda) for k, v in batch.items()}
         return batch
 
     @contextmanager
@@ -191,8 +206,9 @@ class Experiment:
         arguments = self.arguments = self._collect_arguments(argv)
         self.callback = self.callback_factory.from_dict(arguments)
         self.callback.on_prepare_experiment(self)  # Call the prepare callback
-                                                   # before constructing
-                                                   # anything else
+        # before constructing
+        # anything else
+        print(arguments)
         self.train_data = self.train_data_factory.from_dict(arguments)
         self.val_data = self.val_data_factory.from_dict(arguments)
         self.model = self.model_factory.from_dict(arguments)

@@ -165,4 +165,3 @@ class LocalWandB(WandB):
 
         wandb.finish()
         self.local_server.close_server()
-
